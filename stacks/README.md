@@ -7,8 +7,9 @@ This CDK project implements the GYB Connect infrastructure using a modular appro
 The infrastructure is divided into the following stacks:
 
 ### 1. VPC Stack (`stacks/vpc_stack.go`)
+
 - **Purpose**: Foundational networking infrastructure
-- **Resources**: 
+- **Resources**:
   - VPC with public and private subnets across 2 AZs
   - Internet Gateway and NAT Gateways
   - Route tables and security groups base
@@ -16,6 +17,7 @@ The infrastructure is divided into the following stacks:
 - **Stack Name**: `GybConnect-VpcStack`
 
 ### 2. S3 Stack (`stacks/s3_stack.go`)
+
 - **Purpose**: File storage for uploads
 - **Resources**:
   - S3 bucket with versioning enabled
@@ -26,6 +28,7 @@ The infrastructure is divided into the following stacks:
 - **Stack Name**: `GybConnect-S3Stack`
 
 ### 3. DynamoDB Stack (`stacks/dynamodb_stack.go`)
+
 - **Purpose**: User logs and application data
 - **Resources**:
   - DynamoDB table with partition key (userId) and sort key (timestamp)
@@ -36,6 +39,7 @@ The infrastructure is divided into the following stacks:
 - **Stack Name**: `GybConnect-DynamoDBStack`
 
 ### 4. RDS Stack (`stacks/rds_stack.go`)
+
 - **Purpose**: PostgreSQL database for relational data
 - **Resources**:
   - RDS PostgreSQL 15.4 instance (t3.micro)
@@ -59,6 +63,7 @@ The infrastructure is divided into the following stacks:
 ## Deployment Strategy
 
 ### Development Environment
+
 ```bash
 # Deploy all stacks
 cdk deploy --all
@@ -119,7 +124,7 @@ The stacks use CloudFormation exports to share resources:
 
 ## File Structure
 
-```
+```plain
 gyb-connect-infra/
 ├── gyb_connect.go          # Main orchestration file
 ├── stacks/
