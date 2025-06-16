@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"github.com/aws/aws-cdk-go/awscdk/v2"
-	"github.com/aws/aws-cdk-go/awscdk/v2/awsec2"
 	"github.com/aws/jsii-runtime-go"
 )
 
@@ -23,18 +22,14 @@ func main() {
 
 	// Get environment from context or environment variable
 	environment := getEnvironment(app)
-	isProduction := environment == stacks.PROD_ENV
 
-	// 1. Create VPC Stack (only for production)
-	var vpcStack *stacks.VpcStack
-	if isProduction {
-		vpcStack = stacks.NewVpcStack(app, "GybConnect-VpcStack", &stacks.VpcStackProps{
-			StackProps: awscdk.StackProps{
-				Env:         env,
-				Description: jsii.String("VPC and networking infrastructure for GYB Connect"),
-			},
-		})
-	}
+	// 1. Create VPC Stack
+	vpcStack := stacks.NewVpcStack(app, "GybConnect-VpcStack", &stacks.VpcStackProps{
+		StackProps: awscdk.StackProps{
+			Env:         env,
+			Description: jsii.String("VPC and networking infrastructure for GYB Connect"),
+		},
+	})
 
 	// 2. Create S3 Stack (independent)
 	s3Stack := stacks.NewS3Stack(app, "GybConnect-S3Stack", &stacks.S3StackProps{
@@ -54,18 +49,13 @@ func main() {
 		Environment: environment,
 	})
 
-	// 4. Create RDS Stack (conditionally depends on VPC)
-	var rdsVpc awsec2.IVpc
-	if vpcStack != nil {
-		rdsVpc = vpcStack.Vpc
-	}
-
+	// 4. Create RDS Stack (depends on VPC)
 	rdsStack := stacks.NewRDSStack(app, "GybConnect-RDSStack", &stacks.RDSStackProps{
 		StackProps: awscdk.StackProps{
 			Env:         env,
 			Description: jsii.String("RDS PostgreSQL database infrastructure for GYB Connect"),
 		},
-		Vpc:         rdsVpc,
+		Vpc:         vpcStack.Vpc,
 		Environment: environment,
 	})
 
@@ -78,10 +68,8 @@ func main() {
 		Environment: environment,
 	})
 
-	// Add dependencies to ensure proper deployment order (only if VPC stack exists)
-	if vpcStack != nil {
-		rdsStack.AddDependency(vpcStack.Stack, jsii.String("VPC must be created before RDS"))
-	}
+	// Add dependencies to ensure proper deployment order
+	rdsStack.AddDependency(vpcStack.Stack, jsii.String("VPC must be created before RDS"))
 
 	// Suppress unused variable warnings for now
 	_ = s3Stack
