@@ -160,7 +160,7 @@ func NewIAMStack(scope constructs.Construct, id string, props *IAMStackProps) *I
 			awsiam.ManagedPolicy_FromAwsManagedPolicyName(jsii.String("ReadOnlyAccess")),
 		},
 		// PCI DSS Req 8.1.3: Maximum session duration of 15 minutes for privileged access
-		MaxSessionDuration: awscdk.Duration_Minutes(jsii.Number(15)),
+MaxSessionDuration: awscdk.Duration_Hours(jsii.Number(1)),
 	})
 
 	// Add tags to the role
