@@ -4,5 +4,27 @@
         "awsdynamodb",
         "awsec",
         "jsii"
-    ]
+    ],
+    "workbench.colorCustomizations": {
+        "activityBar.activeBackground": "#e99dca",
+        "activityBar.background": "#e99dca",
+        "activityBar.foreground": "#15202b",
+        "activityBar.inactiveForeground": "#15202b99",
+        "activityBarBadge.background": "#59821d",
+        "activityBarBadge.foreground": "#e7e7e7",
+        "commandCenter.border": "#15202b99",
+        "sash.hoverBorder": "#e99dca",
+        "sideBar.border": "#e99dca",
+        "statusBar.background": "#e073b3",
+        "statusBar.foreground": "#15202b",
+        "statusBarItem.hoverBackground": "#d7499c",
+        "statusBarItem.remoteBackground": "#e073b3",
+        "statusBarItem.remoteForeground": "#15202b",
+        "tab.activeBorder": "#e99dca",
+        "titleBar.activeBackground": "#e073b3",
+        "titleBar.activeForeground": "#15202b",
+        "titleBar.inactiveBackground": "#e073b399",
+        "titleBar.inactiveForeground": "#15202b99"
+    },
+    "peacock.color": "#e073b3"
 }

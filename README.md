@@ -1,18 +1,38 @@
-# GYB Connect Infrastructure
+# GYB Connect Infrastructure - PCI DSS Compliant
 
-This CDK project implements the AWS infrastructure for GYB Connect using a **modular stack architecture** following AWS CDK best practices.
+This CDK project implements the AWS infrastructure for GYB Connect using a **modular stack architecture** following AWS CDK best practices and **PCI DSS SAQ D-SP compliance requirements**.
 
 ## 🏗️ Architecture Overview
 
 The infrastructure is split into independent, deployable stacks:
 
+- **KMS Stack**: Customer-Managed Encryption Keys for PCI DSS compliance
+- **Security Stack**: GuardDuty, Inspector, and Security Hub for threat detection
 - **VPC Stack**: Networking foundation (VPC, subnets, gateways)
-- **S3 Stack**: File storage for uploads (`gyb-uploads-s3`)
-- **DynamoDB Stack**: User logs database (`gyb-user-logs`)
-- **RDS Stack**: PostgreSQL database for relational data
-- **API Gateway Stack**: HTTP API endpoints with authentication
+- **S3 Stack**: File storage with customer-managed encryption
+- **DynamoDB Stack**: User logs database with customer-managed encryption
+- **IAM Stack**: Least privilege roles and MFA enforcement policies
+- **Logging Stack**: Centralized logging with CloudTrail and real-time alerting
+- **RDS Stack**: PostgreSQL database with SSL enforcement and encryption
+- **API Gateway Stack**: HTTPS API endpoints with TLS 1.2+ enforcement
 
 For detailed information about each stack, see [README-STACKS.md](./README-STACKS.md).
+
+## 🔐 PCI DSS Compliance Features
+
+This infrastructure implements controls for PCI DSS Requirements:
+
+- **Req 2**: Secure configurations with environment-specific settings
+- **Req 3**: Customer-managed encryption keys (CMK) for data at rest
+- **Req 4**: TLS 1.2+ enforcement and SSL for database connections
+- **Req 5**: GuardDuty malware protection
+- **Req 6**: Security vulnerability scanning with Inspector
+- **Req 7**: Least privilege access control with role-based permissions
+- **Req 8**: Strong authentication with mandatory MFA enforcement
+- **Req 10**: Comprehensive logging and monitoring with CloudTrail and real-time alerts
+- **Req 11**: Continuous security monitoring with Security Hub
+
+See the `docs/` directory for detailed compliance documentation.
 
 ## 🚀 Quick Start
 
@@ -20,68 +40,49 @@ For detailed information about each stack, see [README-STACKS.md](./README-STACK
 
 - AWS CLI configured with appropriate credentials
 - AWS CDK v2 installed: `npm install -g aws-cdk`
-- Go 1.23+ installed
+- Go 1.19+ installed
+- ACM Certificate for custom domains (for API Gateway TLS)
+
+### Environment Setup
+
+```bash
+# Set up your ACM certificate ARN
+export ACM_CERTIFICATE_ARN="arn:aws:acm:us-west-1:123345667789:certificate/1234567890"
+
+# Choose your environment
+export DEPLOY_ENV="dev"  # or "prod" for production
+```
 
 ### Deployment
 
-The `deploy.sh` script provides environment-aware deployments with automatic dependency management:
-
-#### Environment Options
-
-**Development Environment (Default)**
-
-- Uses AWS default VPC for RDS (no custom VPC needed)
-- Simplified stack deployment order
-- Cost-effective for development and testing
-
-**Production Environment**
-
-- Creates custom VPC with proper network isolation
-- Enhanced security and network segmentation
-- Production-ready configurations
-
-#### Usage Examples
+The infrastructure automatically deploys stacks in the correct order:
 
 ```bash
-# DEVELOPMENT DEPLOYMENTS
-./deploy.sh              # Deploy all development stacks (no VPC)
-./deploy.sh all          # Same as above - explicit "all" for development
+# Deploy all stacks for development
+./deploy.sh dev
 
-# PRODUCTION DEPLOYMENTS  
-./deploy.sh all-prod     # Deploy all production stacks (includes VPC)
-DEPLOY_ENV=production ./deploy.sh all  # Alternative using environment variable
+# Deploy all stacks for production (with confirmation)
+./deploy.sh prod
 
-# INDIVIDUAL STACK DEPLOYMENTS
-./deploy.sh vpc          # VPC stack only (production environment)
-./deploy.sh s3           # S3 stack only
-./deploy.sh dynamodb     # DynamoDB stack only  
-./deploy.sh rds          # RDS stack only (environment-aware)
-./deploy.sh api          # API Gateway stack only
-
-# ENVIRONMENT OVERRIDE
-DEPLOY_ENV=production ./deploy.sh rds   # Deploy RDS with production VPC
-DEPLOY_ENV=development ./deploy.sh rds  # Deploy RDS with default VPC
+# Individual stack deployments (rarely needed)
+cdk deploy GybConnect-KmsStack
+cdk deploy GybConnect-SecurityStack
 ```
 
-#### Deployment Flow
+#### Deployment Order
 
-**Development Flow (./deploy.sh all)**
-
-```
-1. S3 Stack
-2. DynamoDB Stack  
-3. RDS Stack (default VPC)
-4. API Gateway Stack
-```
-
-**Production Flow (./deploy.sh all-prod)**
+The stacks deploy in this specific order to handle dependencies:
 
 ```
-1. VPC Stack (foundation)
-2. S3 Stack
-3. DynamoDB Stack
-4. RDS Stack (custom VPC)
-5. API Gateway Stack
+1. KMS Stack (encryption keys)
+2. Security Stack (monitoring services)
+3. VPC Stack (networking)
+4. S3 Stack (uses KMS key)
+5. DynamoDB Stack (uses KMS key)
+6. IAM Stack (uses S3 and DynamoDB resources)
+7. Logging Stack (uses KMS key)
+8. RDS Stack (uses VPC and KMS key)
+9. API Gateway Stack (uses certificate)
 ```
 
 ## 📋 Management Commands
@@ -89,15 +90,16 @@ DEPLOY_ENV=development ./deploy.sh rds  # Deploy RDS with default VPC
 Use the provided scripts for common operations:
 
 ```bash
-# Environment-aware deployment (see above for detailed examples)
-./deploy.sh [all|all-prod|vpc|s3|dynamodb|rds|api]
+# Deployment
+./deploy.sh dev          # Deploy development environment
+./deploy.sh prod         # Deploy production environment
 
 # Management operations  
 ./manage.sh status       # Check what's deployed
 ./manage.sh outputs      # View stack outputs
 ./manage.sh diff         # See pending changes
 ./manage.sh validate     # Validate configuration
-./manage.sh destroy      # Destroy all stacks
+./manage.sh destroy      # Destroy all stacks (be careful!)
 ```
 
 ## 🔧 Development
@@ -110,72 +112,117 @@ go build .
 cdk synth --all
 
 # View specific stack template
-cdk synth GybConnect-S3Stack
+cdk synth GybConnect-SecurityStack
 
 # Check differences
 cdk diff --all
 ```
 
-## 🌍 Environment Detection
-
-The infrastructure automatically detects the target environment using the following priority order:
-
-1. **CDK Context**: `cdk deploy -c environment=production`
-2. **Environment Variable**: `DEPLOY_ENV=production`  
-3. **Default**: Development environment (uses default VPC)
+## 🌍 Environment Configuration
 
 **Environment Differences:**
 
 | Feature | Development | Production |
 |---------|-------------|------------|
 | VPC | AWS Default VPC | Custom VPC Stack |
-| RDS Networking | Default VPC subnets | Private subnets |
-| Security Groups | Default VPC security group | Custom security groups |
-| Deployment Order | S3 → DynamoDB → RDS → API | VPC → S3 → DynamoDB → RDS → API |
-| Cost | Lower (no VPC costs) | Higher (VPC NAT, etc.) |
-
-The stacks are environment-agnostic by default. To deploy to specific environments:
-
-1. Update the `env()` function in `gyb_connect.go`
-2. Set environment-specific configurations in each stack
+| Deletion Protection | Disabled | Enabled |
+| Removal Policy | DESTROY | RETAIN |
+| CORS Origins | localhost, dev domains | Production domains only |
+| Custom Domain | api-dev.gybconnect.com | api.gybconnect.com |
+| Security Alerts | Optional | Required |
 
 ## 📊 Stack Dependencies
 
 ```
-VPC Stack (foundational)
-├── RDS Stack (requires VPC)
-└── Independent stacks:
-    ├── S3 Stack
-    ├── DynamoDB Stack
-    └── API Gateway Stack
+KMS Stack (foundational - encryption keys)
+├── S3 Stack (uses S3 KMS key)
+├── DynamoDB Stack (uses DynamoDB KMS key)
+├── IAM Stack (uses S3/DynamoDB resources)
+│   └── Requires S3 and DynamoDB stacks
+├── Logging Stack (uses Logging KMS key)
+│   └── Requires KMS stack
+├── RDS Stack (uses RDS KMS key)
+│   └── Requires VPC Stack
+└── Security Stack (independent monitoring)
+
+API Gateway Stack (uses ACM certificate)
 ```
 
 ## 🔐 Security Features
 
-- **S3**: Bucket encryption, versioning, block public access
-- **DynamoDB**: Encryption at rest, TTL for automatic cleanup  
-- **RDS**: VPC isolation, security groups, automated backups
-- **API Gateway**: CORS configuration, API keys, throttling
+### Encryption
 
-## 💰 Cost Optimization
+- **KMS**: Customer-managed keys with automatic rotation
+- **S3**: CMK encryption for all objects
+- **DynamoDB**: CMK encryption for tables
+- **RDS**: CMK encryption + SSL enforcement
 
-- S3 lifecycle rules for incomplete uploads
-- DynamoDB pay-per-request billing
-- RDS t3.micro instance (free tier eligible)
-- Automatic cleanup configurations
+### Monitoring & Detection
+
+- **GuardDuty**: Malware and threat detection
+- **Inspector**: Vulnerability scanning
+- **Security Hub**: Compliance monitoring
+- **EventBridge**: Automated security alerts
+
+### Network Security
+
+- **VPC**: Private subnets for databases
+- **Security Groups**: Least privilege access
+- **API Gateway**: TLS 1.2+ only
+- **WAF**: Protection against common attacks
+
+### Access Control
+
+- **IAM Identity Center**: Centralized authentication with MFA
+- **Least Privilege Roles**: Specific roles for each service
+- **MFA Enforcement**: Boundary policies require MFA for all actions
+- **IAM Access Analyzer**: Continuous permission monitoring
+
+### Logging and Monitoring
+
+- **CloudTrail**: Multi-region API logging with file validation
+- **CloudWatch Logs**: Real-time log processing and retention
+- **S3 Central Logging**: Immutable storage with Object Lock
+- **EventBridge Rules**: Real-time security event monitoring
+- **SNS Alerts**: Immediate notification of critical events
+
+
 
 ## 🚨 Production Checklist
 
 Before deploying to production:
 
-1. **Update removal policies** to `RETAIN` for data stores
-2. **Configure proper CORS origins** for API Gateway
-3. **Enable deletion protection** for RDS
-4. **Review instance types** and scaling settings
-5. **Set up monitoring** and alerting
-6. **Configure backup strategies**
+1. ✅ **Set certificate ARN** in environment variable
+2. ✅ **Update domain names** in `gyb_connect.go`
+3. ✅ **Configure security alerts** email in `security_stack.go`
+4. ✅ **Review instance types** for production workloads
+5. ✅ **Set up DNS records** for custom domains
+6. ✅ **Enable IAM Identity Center** with MFA for all users
+7. ✅ **Configure IAM Access Analyzer** for continuous monitoring
+8. ✅ **Configure security alert email** in logging stack
+9. ✅ **Verify CloudTrail is logging** and alerts are working
+10. ✅ **Enable Amazon Macie** for data discovery
+11. ✅ **Schedule ASV scans** for PCI compliance
+12. ✅ **Plan penetration testing** annually
 
-## 📚 Additional Resources
+## 📚 Documentation
+
+### Compliance Guides
+
+- [PCI DSS Compliance Roadmap](docs/PCI%20DSS%20SAQ%20D-SP%20Compliance%20Roadmap%20for%20GYB%20Connect.md)
+- [Certificate Integration Guide](docs/Certificate_Integration_Guide.md)
+- [Requirements 5, 6, 11 Summary](docs/PCI_DSS_Requirements_5_6_11_Summary.md)
+- [Requirements 7 & 8 Summary](docs/PCI_DSS_Requirements_7_8_Summary.md)
+- [Requirement 10 Summary](docs/PCI_DSS_Requirement_10_Summary.md)
+
+### Implementation Guides
+
+- [Requirement 6: Secure SDLC](docs/PCI_DSS_Requirement_6_SDLC_Security_Guide.md)
+- [Requirements 7 & 8: Access Control & Authentication](docs/PCI_DSS_Requirements_7_8_Implementation_Guide.md)
+- [Requirement 10: Logging & Monitoring](docs/PCI_DSS_Requirement_10_Implementation_Guide.md)
+- [Requirement 11: Security Testing](docs/PCI_DSS_Requirement_11_Testing_Guide.md)
+
+### Technical Documentation
 
 - [Detailed Stack Documentation](./README-STACKS.md)
 - [AWS CDK Developer Guide](https://docs.aws.amazon.com/cdk/latest/guide/)
@@ -184,6 +231,15 @@ Before deploying to production:
 ## 🤝 Contributing
 
 1. Follow the modular stack pattern
-2. Update documentation for new stacks
-3. Test with `./manage.sh validate` before committing
-4. Use meaningful stack and resource names
+2. Add PCI DSS requirement comments in code
+3. Update documentation for new features
+4. Test with `./manage.sh validate` before committing
+5. Use meaningful stack and resource names
+6. Ensure security best practices
+
+## 📞 Support
+
+For security issues or compliance questions:
+
+- Security Team: <security@gybconnect.com>
+- Infrastructure: <devops@gybconnect.com>

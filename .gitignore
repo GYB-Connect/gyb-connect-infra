@@ -17,18 +17,6 @@
 # CDK asset staging directory
 .cdk.staging
 cdk.out
-text/GybConnect-ApiGatewayStack.assets.json
-text/GybConnect-ApiGatewayStack.template.json
-text/GybConnect-DynamoDBStack.assets.json
-text/GybConnect-DynamoDBStack.template.json
-text/GybConnect-RDSStack.assets.json
-text/GybConnect-RDSStack.template.json
-text/GybConnect-S3Stack.assets.json
-text/GybConnect-S3Stack.template.json
-text/GybConnect-VpcStack.assets.json
-text/GybConnect-VpcStack.template.json
-text/manifest.json
-text/tree.json
-text/asset.7fa1e366ee8a9ded01fc355f704cff92bfd179574e6f9cfee800a3541df1b200/__entrypoint__.js
-text/asset.7fa1e366ee8a9ded01fc355f704cff92bfd179574e6f9cfee800a3541df1b200/index.js
-text/asset.faa95a81ae7d7373f3e1f242268f904eb748d8d0fdd306e8a6fe515a1905a7d6/index.js
+text/*
+.DS_Store
+.env
