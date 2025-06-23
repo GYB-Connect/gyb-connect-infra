@@ -26,5 +26,6 @@
         "titleBar.inactiveBackground": "#e073b399",
         "titleBar.inactiveForeground": "#15202b99"
     },
-    "peacock.color": "#e073b3"
+    "peacock.color": "#e073b3",
+    "postman.settings.dotenv-detection-notification-visibility": false
 }
