@@ -20,6 +20,8 @@ type SecurityStackProps struct {
 type SecurityStack struct {
 	awscdk.Stack
 	GuardDutyDetector awsguardduty.CfnDetector
+	SecurityHub       awssecurityhub.CfnHub
+	PCIStandard       awssecurityhub.CfnStandard
 	SecurityTopic     awssns.Topic
 }
 
@@ -75,7 +77,7 @@ func NewSecurityStack(scope constructs.Construct, id string, props *SecurityStac
 			},
 			{
 				Key:   jsii.String("PCI-DSS-Requirement"),
-				Value: jsii.String("5.2,11.3"),
+				Value: jsii.String("5.2 11.3"),
 			},
 		},
 	})
@@ -100,26 +102,22 @@ func NewSecurityStack(scope constructs.Construct, id string, props *SecurityStac
 
 	// PCI DSS Req 11.3: Enable AWS Security Hub for centralized security findings
 	// Security Hub aggregates findings from GuardDuty, Inspector, and other services
-	_ = awssecurityhub.NewCfnHub(stack, jsii.String("SecurityHub"), &awssecurityhub.CfnHubProps{
-		// Enable compliance standards
-		EnableDefaultStandards: jsii.Bool(true),
+	securityHub := awssecurityhub.NewCfnHub(stack, jsii.String("SecurityHub"), &awssecurityhub.CfnHubProps{
+		// Disable default standards to avoid conflicts
+		EnableDefaultStandards: jsii.Bool(false),
 		Tags: &map[string]*string{
-			"Environment":       jsii.String(envPrefix),
+			"Environment":         jsii.String(envPrefix),
 			"PCI-DSS-Requirement": jsii.String("11.3"),
 		},
 	})
 
 	// PCI DSS Req 11.3: Enable PCI DSS standard in Security Hub
-	_ = awssecurityhub.NewCfnStandard(stack, jsii.String("PCIDSSStandard"), &awssecurityhub.CfnStandardProps{
-		StandardsArn: jsii.String("arn:aws:securityhub:::ruleset/pci-dss/v/3.2.1"),
-		DisabledStandardsControls: &[]*awssecurityhub.CfnStandard_StandardsControlProperty{
-			// Disable controls that don't apply to our serverless architecture
-			{
-				StandardsControlArn: jsii.String("arn:aws:securityhub:*:*:control/pci-dss/v/3.2.1/PCI.EC2.1"),
-				Reason:             jsii.String("Not using EC2 instances"),
-			},
-		},
+	// Must wait for Security Hub to be fully enabled first
+	pciStandard := awssecurityhub.NewCfnStandard(stack, jsii.String("PCIDSSStandard"), &awssecurityhub.CfnStandardProps{
+		StandardsArn: jsii.String("arn:aws:securityhub:" + *stack.Region() + "::standards/pci-dss/v/3.2.1"),
+		// Initially enable all controls, then disable specific ones after subscription is established
 	})
+	pciStandard.AddDependency(securityHub)
 
 	// PCI DSS Req 11.3 & 10.4: Create EventBridge rules for critical security findings
 	// High severity findings require immediate attention
@@ -210,9 +208,23 @@ func NewSecurityStack(scope constructs.Construct, id string, props *SecurityStac
 		ExportName:  jsii.String("GybConnect-GuardDutyDetectorId-" + envPrefix),
 	})
 
+	awscdk.NewCfnOutput(stack, jsii.String("SecurityHubArn"), &awscdk.CfnOutputProps{
+		Value:       securityHub.AttrArn(),
+		Description: jsii.String("ARN of the Security Hub"),
+		ExportName:  jsii.String("GybConnect-SecurityHubArn-" + envPrefix),
+	})
+
+	awscdk.NewCfnOutput(stack, jsii.String("PCIStandardArn"), &awscdk.CfnOutputProps{
+		Value:       pciStandard.AttrStandardsSubscriptionArn(),
+		Description: jsii.String("ARN of the PCI DSS standard subscription"),
+		ExportName:  jsii.String("GybConnect-PCIStandardArn-" + envPrefix),
+	})
+
 	return &SecurityStack{
 		Stack:             stack,
 		GuardDutyDetector: guarddutyDetector,
+		SecurityHub:       securityHub,
+		PCIStandard:       pciStandard,
 		SecurityTopic:     securityTopic,
 	}
 } 
